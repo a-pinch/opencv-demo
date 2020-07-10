@@ -30,7 +30,7 @@ public class MultiThreadVideoCaptureDemo {
 
         Yaml yaml = new Yaml();
         try {
-            try(InputStream in = MultiThreadVideoCaptureDemo.class.getClassLoader().getResourceAsStream("application.yml")){
+            try (InputStream in = MultiThreadVideoCaptureDemo.class.getClassLoader().getResourceAsStream("application.yml")) {
                 config = yaml.loadAs(in, Config.class);
                 log.debug(config.toString());
             }
@@ -48,7 +48,7 @@ public class MultiThreadVideoCaptureDemo {
 //                "https://hls-stream.fever-screener.altoros.com/14/1/video/stream.m3u8",
 //                "https://hls-stream.fever-screener.altoros.com/14/2/video/stream.m3u8");
 
-                MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue,
+        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue,
                 "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
                 "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
 
@@ -65,34 +65,40 @@ public class MultiThreadVideoCaptureDemo {
         do {
             fps = cap.getFps();//*/6;
             sleep(10);
-        }while(fps == 0);
+        } while (fps == 0);
 
         int key = 0;
         Mat[] frame;
-        do{
+        do {
+            try {
+                frame = processedFramesQueue.poll();
+                if (frame == null) {
+                    sleep((int) Math.round(1000 / fps));
+                } else {
 
-            frame = processedFramesQueue.poll();
-            if(frame == null) {
-                sleep((int)Math.round(1000 / fps));
-            } else {
+                    fpsMeter.measure();
+                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
 
-                fpsMeter.measure();
-                log.debug(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
+                    int delay = synchWatch.check(frame);
+                    if(delay > 0) cap.delay(1, delay);
+                    if(delay < 0) cap.delay(0, -delay);
 
-                synchWatch.red(frame);
+                    Mat multiFrame = concatenate(frame, 5. / 8);
+                    HighGui.imshow("Cap", multiFrame);
 
-                Mat multiFrame = concatenate(frame, 5./8);
-                HighGui.imshow("Cap", multiFrame);
-
-                key = HighGui.waitKey((int)Math.round(700 / fps));
-                if (key == 37) {
-                    cap.delay(0, DEFAULT_FRAMES_DELAY);
-                } else if (key == 39) {
-                    cap.delay(1, DEFAULT_FRAMES_DELAY);
+                    key = HighGui.waitKey((int) Math.round(700 / fps));
+                    if (key == 37) {
+                        cap.delay(0, DEFAULT_FRAMES_DELAY);
+                    } else if (key == 39) {
+                        cap.delay(1, DEFAULT_FRAMES_DELAY);
+                    }
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                key = 27;
             }
 
-        }while (key != 27);
+        } while (key != 27);
 
         cap.release();
         frameProcessor.stop();
@@ -108,11 +114,12 @@ public class MultiThreadVideoCaptureDemo {
 
     private static Mat concatenate(Mat[] frames, Double resize) {
         Mat dst = new Mat();
-        List<Mat> resized = Arrays.asList(frames);
+        List<Mat> resized = new ArrayList<>(frames.length);
 
-        if(resize != null) {
-            Size sz = new Size(frames[0].width() *resize, frames[0].height() * resize);
+        if (resize != null) {
+            Size sz = new Size(frames[0].width() * resize, frames[0].height() * resize);
             for (int i = 0; i < frames.length; i++) {
+                resized.add(new Mat());
                 Imgproc.resize(frames[i], resized.get(i), sz);
             }
         }
@@ -122,7 +129,7 @@ public class MultiThreadVideoCaptureDemo {
         return dst;
     }
 
-    private static void sleep(long millis){
+    private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {

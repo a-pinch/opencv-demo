@@ -7,5 +7,5 @@ import org.opencv.core.Rect;
 
 @Getter @Setter @ToString
 public class Config {
-    Rect watcher = new Rect();
+    Watcher watcher = new Watcher();
 }
