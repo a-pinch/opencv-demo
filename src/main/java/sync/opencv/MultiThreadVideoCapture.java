@@ -20,7 +20,7 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private static final int DEFAULT_QUEUE_SIZE = 64;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
-    private static final int LOG_STEP = 1;
+    private static final int LOG_STEP = 20;
 
     private volatile Queue<Mat[]> multiFramesQueue;
     private int queueLimit;
@@ -32,7 +32,6 @@ public class MultiThreadVideoCapture implements Runnable {
     private Thread[] threads;
     private Mat diff = new Mat();
     Rect watchBox;
-    private ReentrantLock lock = new ReentrantLock();
 
     private static CyclicBarrier BARRIER;
 
@@ -75,7 +74,7 @@ public class MultiThreadVideoCapture implements Runnable {
                 fpsMeter.measure();
                 sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             release();
         }
@@ -119,100 +118,48 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private Mat[] combine() {
 
-//        if (log.isTraceEnabled())
-//            log.trace("before combine: " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
-//                    " delay: " + delay.entrySet().stream().map(Objects::toString).collect(Collectors.joining(",")) + "; " +
-//                    Arrays.stream(videoCaptures)
-//                            .map(c -> String.format("%s %d (%.2f); ", c.getName(), c.queue(), c.getFpsCur()))
-//                            .collect(Collectors.joining()));
-
-        Mat[] multiFrame = null;// = new Mat[videoCaptures.length];
+        Mat[] multiFrame = null;
 
         long t = System.currentTimeMillis();
+        int i0 = 0; int i1 = 0;
+        Mat f0 = null; Mat f1= null;
+        int distortion = 0;
         do {
 
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
-                Mat f1 = videoCaptures[0].peak();
-                Mat f2 = videoCaptures[1].peak();
-                int dist = compare(f1, f2);
-
-                log.trace("origin dist " + dist);
-
-
-                if (dist > 30 && videoCaptures[0].queue() > 1 && videoCaptures[1].queue() > 1) {
-
-                    try {
-                        lock.lock();
-                        Iterator<Mat> i1 = videoCaptures[0].iterator();
-                        Iterator<Mat> i2 = videoCaptures[1].iterator();
-                        i1.next();
-                        i2.next();
-                        int i = 0;
-
-                        int distf12 = compare(f1, i2.next());
-                        int distf21 = compare(f2, i1.next());
-                        i = 1;
-
-                        log.trace(String.format("dist(%d) %d - %d", i, distf12, distf21));
-
-                        while (distf12 > 30 && distf21 > 30 && i1.hasNext() && i2.hasNext()) {
-                            distf12 = compare(f1, i2.next());
-                            distf21 = compare(f2, i1.next());
-                            i++;
-                            log.trace(String.format("dist(%d) %d - %d", i, distf12, distf21));
-                        }
-
-                        if ((dist = Math.min(distf12, distf21)) < 30) {
-                            //shift
-                            log.trace(String.format("shift %d on %d", distf12 < distf21 ? 1 : 0, i));
-                            if (distf12 < distf21) for (int j = 0; j < i; j++) videoCaptures[1].read();
-                            else for (int j = 0; j < i; j++) videoCaptures[0].read();
-                        } else {
-                            log.trace("sleep");
-                        }
-                    } finally {
-                        lock.unlock();
+                if(f0==null || f1==null) {
+                    f0 = videoCaptures[0].peak();
+                    f1 = videoCaptures[1].peak();
+                    distortion = compare(f0, f1);
+                    if(log.isDebugEnabled() && distortion > 30) {
+                        log.debug("origin distortion " + distortion);
+                    }else{
+                        log.trace("origin distortion " + distortion);
                     }
                 }
 
-                if (dist < 30) multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
-                else sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
+                if (distortion > 30) {
+                    if((i0=shift(f0, videoCaptures[1], 1, i0)) < 0 || (i1=shift(f1, videoCaptures[0], 0, i1)) < 0)
+                        multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
+                } else {
+                    multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
+                }
             }
+
+            if (multiFrame == null) sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
         } while (multiFrame == null);
-/*
-        boolean allCombined;
-        do{
-            allCombined = true;
-            for(int i=0; i< videoCaptures.length; i++){
-                if(multiFrame[i] == null){
-                    if(delay.containsKey(i)) {
-                        multiFrame[i] = videoCaptures[i].peak();
-                        if(multiFrame[i] != null){
-                            if(delay.get(i) > 0)
-                                delay.put(i, delay.get(i) - 1);
-                            else
-                                delay.remove(i);
-                        }
-                    } else{
-                        multiFrame[i] = videoCaptures[i].read();
-                    }
-                    allCombined = allCombined && multiFrame[i] != null;
-                }
-            }
-            if(!allCombined) sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
-        }while (!stopped && !allCombined);
-*/
+
         if (log.isDebugEnabled())
             if (++frames % LOG_STEP == 0)
-                log.debug("combine("+(System.currentTimeMillis()-t)+"): " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
-//                        " delay: " + delay.entrySet().stream().map(Objects::toString).collect(Collectors.joining(",")) + "; " +
+                log.debug("combine(" + (System.currentTimeMillis() - t) + "): " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
                         Arrays.stream(videoCaptures)
                                 .map(c -> String.format("%s %d (%.2f); ", c.getName(), c.queue(), c.getFpsCur()))
                                 .collect(Collectors.joining()));
+
         return multiFrame;
     }
 
-    private int compare(Mat ... frames){
+    private int compare(Mat... frames) {
 
 
         Mat visual = frames[0].submat(new Rect(watchBox.x, watchBox.y, watchBox.width, watchBox.height));
@@ -223,11 +170,46 @@ public class MultiThreadVideoCapture implements Runnable {
 
         Core.absdiff(visual, thermal, diff);
 
-        Imgproc.threshold(diff,diff,100,255,Imgproc.THRESH_BINARY);
+        Imgproc.threshold(diff, diff, 100, 255, Imgproc.THRESH_BINARY);
 
         int distAll = Core.countNonZero(diff);
         return distAll;
 
+    }
+
+    private int shift(Mat templateFrame, VideoCapThread cap, int c, int i) {
+        if (cap.queue() > 1) {
+            try {
+                cap.lock();
+                Iterator<Mat> it = cap.iterator();
+                it.next();
+
+                int distf = 100;
+                if(i>0){
+                    for(int j=0;j<i;j++) it.next();
+                } else {
+                    distf = compare(templateFrame, it.next());
+                    i = 1;
+                }
+                log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
+
+                while (distf > 30 && it.hasNext()) {
+                    distf = compare(templateFrame, it.next());
+                    i++;
+                    log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
+                }
+
+                if (distf < 30) {
+                    //shift
+                    log.debug(String.format("shift %d on %d", c, i));
+                    for (int j = 0; j < i; j++) cap.read();
+                    return -1;
+                }
+            } finally {
+                cap.unlock();
+            }
+        }
+        return i;
     }
 
     public double getFps() {
@@ -254,6 +236,7 @@ public class MultiThreadVideoCapture implements Runnable {
         private FpsMeter fpsMeter;
         private double fps = 0;
         private long threadSleep = THREAD_SLEEP_MS;
+        private ReentrantLock lock;
 
         public VideoCapThread(String name, String link) {
             this.link = link;
@@ -261,6 +244,7 @@ public class MultiThreadVideoCapture implements Runnable {
             this.name = name;
             fpsMeter = new FpsMeter(name);
             cap = new VideoCapture();
+            this.lock = new ReentrantLock();
         }
 
         private void init() {
@@ -313,6 +297,14 @@ public class MultiThreadVideoCapture implements Runnable {
             } catch (InterruptedException | BrokenBarrierException e) {
                 e.printStackTrace();
             }
+        }
+
+        public void lock() {
+            lock.lock();
+        }
+
+        public void unlock() {
+            lock.unlock();
         }
 
         public Mat read() {
