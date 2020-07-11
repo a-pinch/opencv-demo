@@ -48,9 +48,13 @@ public class MultiThreadVideoCaptureDemo {
 //                "https://hls-stream.fever-screener.altoros.com/14/1/video/stream.m3u8",
 //                "https://hls-stream.fever-screener.altoros.com/14/2/video/stream.m3u8");
 
+//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue,
+//                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
+//                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
+
         MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue,
-                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
-                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
+                "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=1&subtype=0 ",
+                "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=2&subtype=0");
 
         Thread videoCaptureThread = new Thread(cap);
         videoCaptureThread.start();
@@ -68,6 +72,7 @@ public class MultiThreadVideoCaptureDemo {
         } while (fps == 0);
 
         int key = 0;
+        boolean inited = false;
         Mat[] frame;
         do {
             try {
@@ -77,11 +82,14 @@ public class MultiThreadVideoCaptureDemo {
                 } else {
 
                     fpsMeter.measure();
-                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
+//                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
 
-                    int delay = synchWatch.check(frame);
-                    if(delay > 0) cap.delay(1, delay);
-                    if(delay < 0) cap.delay(0, -delay);
+                    int delay = synchWatch.check(frame, processedFramesQueue.size());
+                    if(!inited) {
+                        if (delay > 0) cap.delay(1, delay);
+                        if (delay < 0) cap.delay(0, -delay);
+                        if(delay != 0) inited = true;
+                    }
 
                     Mat multiFrame = concatenate(frame, 5. / 8);
                     HighGui.imshow("Cap", multiFrame);

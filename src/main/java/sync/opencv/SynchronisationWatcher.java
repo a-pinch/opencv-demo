@@ -21,7 +21,7 @@ public class SynchronisationWatcher {
     private int blinkCounter = 0;
     private int distCounter = 0;
     private boolean warn = false;
-//    private Mat diff = new Mat();
+    private Mat diff = new Mat();
     private Mat dSec = new Mat();
     private Mat dDsec = new Mat();
     private Mat dMin = new Mat();
@@ -32,7 +32,7 @@ public class SynchronisationWatcher {
         this.watcher = watcher;
     }
 
-    public int check(Mat[] frames){
+    public int check(Mat[] frames, int queueSize){
         int distortion = 0;
         if(distCounter == 0) {
             distortion = compare(frames);
@@ -52,6 +52,7 @@ public class SynchronisationWatcher {
                 int returnDist = leftDist < 30 ? -distCounter : distCounter;
                 distCounter = 0;
                 okCounter = BLINK_FRAMES_COUNT;
+                log.debug(String.format("queue: %d; distortion: %d (delay %d)", queueSize, distortion, returnDist) );
                 return returnDist;
             }
         }
@@ -60,6 +61,7 @@ public class SynchronisationWatcher {
             blinkCounter = BLINK_FRAMES_COUNT * 3;
         }
         if(blinkCounter > 0) blink(frames);
+        log.trace(String.format("queue: %d; distortion: %d (%d)", queueSize, distortion, distCounter) );
         return 0;
     }
 
@@ -67,46 +69,45 @@ public class SynchronisationWatcher {
 
 
         //init
-        Mat vSec = frames[0].submat(new Rect(watcher.getSec().x, watcher.getSec().y, watcher.getSec().width, watcher.getSec().height));
-        Mat vDSec = frames[0].submat(new Rect(watcher.getDsec().x, watcher.getDsec().y, watcher.getDsec().width, watcher.getDsec().height));
-        Mat vMin = frames[0].submat(new Rect(watcher.getMin().x, watcher.getMin().y, watcher.getMin().width, watcher.getMin().height));
-//        Mat vAll = frames[0].submat(new Rect(watcher.getAll().x, watcher.getAll().y, watcher.getAll().width, watcher.getAll().height));
+//        Mat vSec = frames[0].submat(new Rect(watcher.getSec().x, watcher.getSec().y, watcher.getSec().width, watcher.getSec().height));
+//        Mat vDSec = frames[0].submat(new Rect(watcher.getDsec().x, watcher.getDsec().y, watcher.getDsec().width, watcher.getDsec().height));
+//        Mat vMin = frames[0].submat(new Rect(watcher.getMin().x, watcher.getMin().y, watcher.getMin().width, watcher.getMin().height));
+        Mat vAll = frames[0].submat(new Rect(watcher.getAll().x, watcher.getAll().y, watcher.getAll().width, watcher.getAll().height));
 
-        Mat tSec = frames[1].submat(new Rect(watcher.getSec().x, watcher.getSec().y, watcher.getSec().width, watcher.getSec().height));
-        Mat tDSec = frames[1].submat(new Rect(watcher.getDsec().x, watcher.getDsec().y, watcher.getDsec().width, watcher.getDsec().height));
-        Mat tMin = frames[1].submat(new Rect(watcher.getMin().x, watcher.getMin().y, watcher.getMin().width, watcher.getMin().height));
-//        Mat tAll = frames[1].submat(new Rect(watcher.getAll().x, watcher.getAll().y, watcher.getAll().width, watcher.getAll().height));
+//        Mat tSec = frames[1].submat(new Rect(watcher.getSec().x, watcher.getSec().y, watcher.getSec().width, watcher.getSec().height));
+//        Mat tDSec = frames[1].submat(new Rect(watcher.getDsec().x, watcher.getDsec().y, watcher.getDsec().width, watcher.getDsec().height));
+//        Mat tMin = frames[1].submat(new Rect(watcher.getMin().x, watcher.getMin().y, watcher.getMin().width, watcher.getMin().height));
+        Mat tAll = frames[1].submat(new Rect(watcher.getAll().x, watcher.getAll().y, watcher.getAll().width, watcher.getAll().height));
 
-        Imgproc.cvtColor(vSec, vSec, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.cvtColor(vDSec, vDSec, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.cvtColor(vMin, vMin, Imgproc.COLOR_BGR2GRAY);
-//        Imgproc.cvtColor(vAll, vAll, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(vSec, vSec, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(vDSec, vDSec, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(vMin, vMin, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.cvtColor(vAll, vAll, Imgproc.COLOR_BGR2GRAY);
 
-        Imgproc.cvtColor(tSec, tSec, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.cvtColor(tDSec, tDSec, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.cvtColor(tMin, tMin, Imgproc.COLOR_BGR2GRAY);
-//        Imgproc.cvtColor(tAll, tAll, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(tSec, tSec, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(tDSec, tDSec, Imgproc.COLOR_BGR2GRAY);
+//        Imgproc.cvtColor(tMin, tMin, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.cvtColor(tAll, tAll, Imgproc.COLOR_BGR2GRAY);
 
         //dist
-        Core.absdiff(vSec, tSec, dSec);
-        Core.absdiff(vDSec, tDSec, dDsec);
-        Core.absdiff(vMin, tMin, dMin);
-//        Core.absdiff(vAll, tAll, diff);
+//        Core.absdiff(vSec, tSec, dSec);
+//        Core.absdiff(vDSec, tDSec, dDsec);
+//        Core.absdiff(vMin, tMin, dMin);
+        Core.absdiff(vAll, tAll, diff);
 
-        Imgproc.threshold(dSec,dSec,100,255,Imgproc.THRESH_BINARY);
-        Imgproc.threshold(dDsec,dDsec,100,255,Imgproc.THRESH_BINARY);
-        Imgproc.threshold(dMin,dMin,100,255,Imgproc.THRESH_BINARY);
-//        Imgproc.threshold(diff,diff,100,255,Imgproc.THRESH_BINARY);
+//        Imgproc.threshold(dSec,dSec,100,255,Imgproc.THRESH_BINARY);
+//        Imgproc.threshold(dDsec,dDsec,100,255,Imgproc.THRESH_BINARY);
+//        Imgproc.threshold(dMin,dMin,100,255,Imgproc.THRESH_BINARY);
+        Imgproc.threshold(diff,diff,100,255,Imgproc.THRESH_BINARY);
 
-        int distSec = Core.countNonZero(dSec);
-        int distDsec = Core.countNonZero(dDsec);
-        int distMin = Core.countNonZero(dMin);
-//        int distAll = Core.countNonZero(diff);
-        int dist = distMin+distDsec+distSec;
+//        int distSec = Core.countNonZero(dSec);
+//        int distDsec = Core.countNonZero(dDsec);
+//        int distMin = Core.countNonZero(dMin);
+        int distAll = Core.countNonZero(diff);
+//        int dist = distMin+distDsec+distSec;
 
-        log.debug(String.format("distortion: %d, %d, %d {%d}", distMin, distDsec, distSec, dist) );
-
-        return dist;
+//        log.debug(String.format("distortion: %d, %d, %d {%d}", distMin, distDsec, distSec, dist) );
+        return distAll;
 
     }
 

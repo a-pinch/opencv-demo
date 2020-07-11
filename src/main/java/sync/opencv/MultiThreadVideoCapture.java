@@ -101,12 +101,12 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private Mat[] combine() {
 
-        if (log.isTraceEnabled())
-            log.trace("before combine: " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
-                    " delay: " + delay.entrySet().stream().map(Objects::toString).collect(Collectors.joining(",")) + "; " +
-                    Arrays.stream(videoCaptures)
-                            .map(c -> String.format("%s %d (%.2f); ", c.getName(), c.queue(), c.getFpsCur()))
-                            .collect(Collectors.joining()));
+//        if (log.isTraceEnabled())
+//            log.trace("before combine: " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
+//                    " delay: " + delay.entrySet().stream().map(Objects::toString).collect(Collectors.joining(",")) + "; " +
+//                    Arrays.stream(videoCaptures)
+//                            .map(c -> String.format("%s %d (%.2f); ", c.getName(), c.queue(), c.getFpsCur()))
+//                            .collect(Collectors.joining()));
 
         Mat[] multiFrame = new Mat[videoCaptures.length];
         boolean allCombined;
@@ -194,9 +194,10 @@ public class MultiThreadVideoCapture implements Runnable {
 
             init();
             barrier();
+            double pos;
 
             while (!stopped) {
-                log.trace(name+" pos " + cap.get(Videoio.CAP_PROP_POS_FRAMES));
+                pos = cap.get(Videoio.CAP_PROP_POS_FRAMES);
                 Mat frame = new Mat();
 
                 if (!cap.read(frame) || frame.empty()) {
@@ -206,7 +207,7 @@ public class MultiThreadVideoCapture implements Runnable {
 
                 frames.offer(frame);
                 fpsMeter.measure();
-                log.trace(name + " frames: " + frames.size());
+                log.trace(String.format("%s %d(%.0f)", name, frames.size(), pos));
                 sleep(threadSleep);
             }
 
