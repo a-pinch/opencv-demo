@@ -1,9 +1,7 @@
 package sync.opencv;
 
 import lombok.extern.slf4j.Slf4j;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
+import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgproc.Imgproc;
 import org.yaml.snakeyaml.Yaml;
@@ -70,8 +68,8 @@ public class MultiThreadVideoCaptureDemo {
         } while (fps == 0);
 
         int key = 0;
-        boolean inited = false;
         Mat[] frame;
+        boolean watchBox = false;
         do {
             try {
                 frame = processedFramesQueue.poll();
@@ -82,15 +80,12 @@ public class MultiThreadVideoCaptureDemo {
                     fpsMeter.measure();
 //                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
 
-
-                    Mat multiFrame = concatenate(frame, 5. / 8);
+                    Mat multiFrame = concatenate(frame, 5. / 8, watchBox ? config.getWatchBox() : null);
                     HighGui.imshow("Cap", multiFrame);
 
                     key = HighGui.waitKey((int) Math.round(700 / fps));
-                    if (key == 37) {
-                        cap.delay(0, DEFAULT_FRAMES_DELAY);
-                    } else if (key == 39) {
-                        cap.delay(1, DEFAULT_FRAMES_DELAY);
+                    if (key == 66) {
+                        watchBox = !watchBox;
                     }
                 }
             } catch (Exception e) {
@@ -114,9 +109,14 @@ public class MultiThreadVideoCaptureDemo {
         System.exit(0);
     }
 
-    private static Mat concatenate(Mat[] frames, Double resize) {
+    private static Mat concatenate(Mat[] frames, Double resize, Rect watchBox) {
         Mat dst = new Mat();
         List<Mat> resized = new ArrayList<>(frames.length);
+
+        if(watchBox != null){
+            Imgproc.rectangle(frames[0], watchBox, new Scalar(0, 0, 255)); //red
+            Imgproc.rectangle(frames[1], watchBox, new Scalar(255, 0, 0)); //blue
+        }
 
         if (resize != null) {
             Size sz = new Size(frames[0].width() * resize, frames[0].height() * resize);
