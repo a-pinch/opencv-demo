@@ -1,23 +1,5 @@
-watcher:
-  all:
-    x: 1120
-    y: 26
-    width: 56
-   #    width: 74
-    height: 30
-  sec:
-    x: 1167
-    y: 26
-    width: 16
-#    width: 74
-    height: 30
-  dsec:
-    x: 1149
-    y: 26
-    width: 16
-    height: 30
-  min:
-    x: 1128
-    y: 26
-    width: 16
-    height: 30
+watchBox:
+  x: 1120
+  y: 26
+  width: 56
+  height: 30

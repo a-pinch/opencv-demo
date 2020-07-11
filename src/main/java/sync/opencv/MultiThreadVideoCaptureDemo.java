@@ -52,7 +52,7 @@ public class MultiThreadVideoCaptureDemo {
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
 
-        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue,
+        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue,
                 "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=1&subtype=0 ",
                 "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=2&subtype=0");
 
@@ -62,8 +62,6 @@ public class MultiThreadVideoCaptureDemo {
         FrameProcessor frameProcessor = new FrameProcessor(rowFramesQueue, processedFramesQueue);
         Thread frameProcessorThread = new Thread(frameProcessor);
         frameProcessorThread.start();
-
-        SynchronisationWatcher synchWatch = new SynchronisationWatcher(config.getWatcher());
 
         double fps = 0;
         do {
@@ -84,12 +82,6 @@ public class MultiThreadVideoCaptureDemo {
                     fpsMeter.measure();
 //                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
 
-                    int delay = synchWatch.check(frame, processedFramesQueue.size());
-                    if(!inited) {
-                        if (delay > 0) cap.delay(1, delay);
-                        if (delay < 0) cap.delay(0, -delay);
-                        if(delay != 0) inited = true;
-                    }
 
                     Mat multiFrame = concatenate(frame, 5. / 8);
                     HighGui.imshow("Cap", multiFrame);
@@ -106,10 +98,12 @@ public class MultiThreadVideoCaptureDemo {
                 key = 27;
             }
 
-        } while (key != 27);
+        } while (!cap.isStopped() && key != 27);
 
         cap.release();
+        log.debug("captures released");
         frameProcessor.stop();
+        log.debug("frame processor stopped");
         try {
             videoCaptureThread.join();
             frameProcessorThread.join();
