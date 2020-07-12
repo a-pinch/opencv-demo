@@ -12,13 +12,13 @@ import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class MultiThreadVideoCapture implements Runnable {
 
     private static final int DEFAULT_QUEUE_SIZE = 64;
+    private static final int SYNCHRONIZATION_SEARCH_DEPTH = 64;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
     private static final int LOG_STEP = 20;
 
@@ -124,30 +124,40 @@ public class MultiThreadVideoCapture implements Runnable {
         int i0 = 0; int i1 = 0;
         Mat f0 = null; Mat f1= null;
         int distortion = 0;
-        do {
 
+        while (multiFrame == null) {
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
-                if(f0==null || f1==null) {
+
+                if(i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
+                    multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
+                    log.debug("combine asynchronous frames");
+                    break;
+                }
+
+                if (f0 != videoCaptures[0].peak() || f1 != videoCaptures[1].peak()) {
                     f0 = videoCaptures[0].peak();
                     f1 = videoCaptures[1].peak();
+                    i0 = 0; i1 = 0;
                     distortion = compare(f0, f1);
-                    if(log.isDebugEnabled() && distortion > 30) {
+                    if (log.isDebugEnabled() && distortion > 30) {
                         log.debug("origin distortion " + distortion);
-                    }else{
+                    } else {
                         log.trace("origin distortion " + distortion);
                     }
                 }
 
                 if (distortion > 30) {
-                    if((i0=shift(f0, videoCaptures[1], 1, i0)) < 0 || (i1=shift(f1, videoCaptures[0], 0, i1)) < 0)
+                    if ((i0 = shift(f0, videoCaptures[1], 1, i0)) < 0 || (i1 = shift(f1, videoCaptures[0], 0, i1)) < 0)
                         multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
                 } else {
                     multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
                 }
+
             }
 
-            if (multiFrame == null) sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
-        } while (multiFrame == null);
+            sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
+
+        }
 
         if (log.isDebugEnabled())
             if (++frames % LOG_STEP == 0)
@@ -179,30 +189,30 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private int shift(Mat templateFrame, VideoCapThread cap, int c, int i) {
         if (cap.queue() > 1) {
-                Iterator<Mat> it = cap.iterator();
-                it.next();
+            Iterator<Mat> it = cap.iterator();
+            it.next();
 
-                int distf = 100;
-                if(i>0){
-                    for(int j=0;j<i;j++) it.next();
-                } else {
-                    distf = compare(templateFrame, it.next());
-                    i = 1;
-                }
+            int distf = 100;
+            if (i > 0) {
+                for (int j = 0; j < i; j++) it.next();
+            } else {
+                distf = compare(templateFrame, it.next());
+                i = 1;
+            }
+            log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
+
+            while (distf > 30 && it.hasNext()) {
+                distf = compare(templateFrame, it.next());
+                i++;
                 log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
+            }
 
-                while (distf > 30 && it.hasNext()) {
-                    distf = compare(templateFrame, it.next());
-                    i++;
-                    log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
-                }
-
-                if (distf < 30) {
-                    //shift
-                    log.debug(String.format("shift %d on %d", c, i));
-                    for (int j = 0; j < i; j++) cap.read();
-                    return -1;
-                }
+            if (distf < 30) {
+                //shift
+                log.debug(String.format("shift %d on %d", c, i));
+                for (int j = 0; j < i; j++) cap.read();
+                return -1;
+            }
         }
         return i;
     }
