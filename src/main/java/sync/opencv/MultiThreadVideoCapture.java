@@ -126,6 +126,7 @@ public class MultiThreadVideoCapture implements Runnable {
         int distortion = 0;
 
         while (multiFrame == null) {
+
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
 
                 if(i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
@@ -155,7 +156,7 @@ public class MultiThreadVideoCapture implements Runnable {
 
             }
 
-            sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
+            if (!videoCaptures[0].more() || !videoCaptures[1].more()) sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
 
         }
 
@@ -201,7 +202,7 @@ public class MultiThreadVideoCapture implements Runnable {
             }
             log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
 
-            while (distf > 30 && it.hasNext()) {
+            if (distf > 30 && it.hasNext()) {
                 distf = compare(templateFrame, it.next());
                 i++;
                 log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
@@ -232,6 +233,7 @@ public class MultiThreadVideoCapture implements Runnable {
     private class VideoCapThread implements Runnable {
 
         private static final int THREAD_SLEEP_MS = 10;  // default thread delay
+        private static final int MX_QUEUE_SIZE = 128;
 
         private volatile Queue<Mat> frames;
         private VideoCapture cap;
@@ -282,6 +284,7 @@ public class MultiThreadVideoCapture implements Runnable {
                 }
 
                 frames.offer(frame);
+                if(frames.size()>MX_QUEUE_SIZE) frames.poll();
                 fpsMeter.measure();
                 log.trace(String.format("%s %d(%.0f)", name, frames.size(), pos));
                 sleep(threadSleep);
