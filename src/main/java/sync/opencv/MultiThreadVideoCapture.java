@@ -179,8 +179,6 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private int shift(Mat templateFrame, VideoCapThread cap, int c, int i) {
         if (cap.queue() > 1) {
-            try {
-                cap.lock();
                 Iterator<Mat> it = cap.iterator();
                 it.next();
 
@@ -205,9 +203,6 @@ public class MultiThreadVideoCapture implements Runnable {
                     for (int j = 0; j < i; j++) cap.read();
                     return -1;
                 }
-            } finally {
-                cap.unlock();
-            }
         }
         return i;
     }
@@ -226,7 +221,7 @@ public class MultiThreadVideoCapture implements Runnable {
 
     private class VideoCapThread implements Runnable {
 
-        private static final int THREAD_SLEEP_MS = 36;  // default thread delay
+        private static final int THREAD_SLEEP_MS = 10;  // default thread delay
 
         private volatile Queue<Mat> frames;
         private VideoCapture cap;
@@ -236,7 +231,6 @@ public class MultiThreadVideoCapture implements Runnable {
         private FpsMeter fpsMeter;
         private double fps = 0;
         private long threadSleep = THREAD_SLEEP_MS;
-        private ReentrantLock lock;
 
         public VideoCapThread(String name, String link) {
             this.link = link;
@@ -244,7 +238,6 @@ public class MultiThreadVideoCapture implements Runnable {
             this.name = name;
             fpsMeter = new FpsMeter(name);
             cap = new VideoCapture();
-            this.lock = new ReentrantLock();
         }
 
         private void init() {
@@ -278,9 +271,7 @@ public class MultiThreadVideoCapture implements Runnable {
                     break;
                 }
 
-                lock.lock();
                 frames.offer(frame);
-                lock.unlock();
                 fpsMeter.measure();
                 log.trace(String.format("%s %d(%.0f)", name, frames.size(), pos));
                 sleep(threadSleep);
@@ -299,13 +290,6 @@ public class MultiThreadVideoCapture implements Runnable {
             }
         }
 
-        public void lock() {
-            lock.lock();
-        }
-
-        public void unlock() {
-            lock.unlock();
-        }
 
         public Mat read() {
             return frames.poll();

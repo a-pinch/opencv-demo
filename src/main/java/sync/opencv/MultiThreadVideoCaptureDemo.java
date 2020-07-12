@@ -78,7 +78,7 @@ public class MultiThreadVideoCaptureDemo {
                 } else {
 
                     fpsMeter.measure();
-//                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
+                    log.trace(String.format("processedFramesQueue %d (%.2f) ", processedFramesQueue.size(), fpsMeter.getFps()));
 
                     Mat multiFrame = concatenate(frame, 5. / 8, watchBox ? config.getWatchBox() : null);
                     HighGui.imshow("Cap", multiFrame);
