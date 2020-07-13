@@ -125,7 +125,7 @@ public class MultiThreadVideoCapture implements Runnable {
         Mat f0 = null; Mat f1= null;
         int distortion = 0;
 
-        while (multiFrame == null) {
+        while (!stopped && multiFrame == null) {
 
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
 
