@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class MultiThreadVideoCapture implements Runnable {
 
     private static final int DEFAULT_QUEUE_SIZE = 64;
-    private static final int SYNCHRONIZATION_SEARCH_DEPTH = 64;
+    private static final int SYNCHRONIZATION_SEARCH_DEPTH = 128;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
     private static final int LOG_STEP = 20;
 
