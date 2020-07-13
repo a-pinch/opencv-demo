@@ -210,8 +210,12 @@ public class MultiThreadVideoCapture implements Runnable {
 
             if (distf < 30) {
                 //shift
-                log.debug(String.format("shift %d on %d", c, i));
-                for (int j = 0; j < i; j++) cap.read();
+                if(i<3){
+                    log.trace(String.format("skip shift %d on %d", c, i));
+                }else {
+                    log.debug(String.format("shift %d on %d", c, i));
+                    for (int j = 0; j < i; j++) cap.read();
+                }
                 return -1;
             }
         }

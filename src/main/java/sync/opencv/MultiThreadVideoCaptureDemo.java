@@ -115,7 +115,8 @@ public class MultiThreadVideoCaptureDemo {
 
         if(watchBox != null){
             Imgproc.rectangle(frames[0], watchBox, new Scalar(0, 0, 255)); //red
-            Imgproc.rectangle(frames[1], watchBox, new Scalar(255, 0, 0)); //blue
+            Imgproc.rectangle(frames[1], watchBox, new Scalar(0, 0, 255)); //red
+//            Imgproc.rectangle(frames[1], watchBox, new Scalar(255, 0, 0)); //blue
         }
 
         if (resize != null) {
