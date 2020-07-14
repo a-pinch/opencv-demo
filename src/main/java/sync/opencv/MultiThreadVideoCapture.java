@@ -179,9 +179,10 @@ public class MultiThreadVideoCapture implements Runnable {
         Imgproc.cvtColor(visual, visual, Imgproc.COLOR_BGR2GRAY);
         Imgproc.cvtColor(thermal, thermal, Imgproc.COLOR_BGR2GRAY);
 
-        Core.absdiff(visual, thermal, diff);
+        Imgproc.threshold(visual, visual, 100, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(thermal, thermal, 100, 255, Imgproc.THRESH_BINARY);
 
-        Imgproc.threshold(diff, diff, 100, 255, Imgproc.THRESH_BINARY);
+        Core.absdiff(visual, thermal, diff);
 
         int distAll = Core.countNonZero(diff);
         return distAll;
