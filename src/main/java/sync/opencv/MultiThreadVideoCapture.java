@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class MultiThreadVideoCapture implements Runnable {
 
     private static final int DEFAULT_QUEUE_SIZE = 64;
-    private static final int SYNCHRONIZATION_SEARCH_DEPTH = 128;
+    private static final int SYNCHRONIZATION_SEARCH_DEPTH = 127;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
     private static final int LOG_STEP = 20;
 
@@ -179,8 +179,8 @@ public class MultiThreadVideoCapture implements Runnable {
         Imgproc.cvtColor(visual, visual, Imgproc.COLOR_BGR2GRAY);
         Imgproc.cvtColor(thermal, thermal, Imgproc.COLOR_BGR2GRAY);
 
-        Imgproc.threshold(visual, visual, 100, 255, Imgproc.THRESH_BINARY);
-        Imgproc.threshold(thermal, thermal, 100, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(visual, visual, 200, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(thermal, thermal, 200, 255, Imgproc.THRESH_BINARY);
 
         Core.absdiff(visual, thermal, diff);
 
