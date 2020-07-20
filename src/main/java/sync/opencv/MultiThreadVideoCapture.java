@@ -162,7 +162,7 @@ public class MultiThreadVideoCapture implements Runnable {
 
         if (log.isDebugEnabled())
             if (++frames % LOG_STEP == 0)
-                log.info("combine(" + (System.currentTimeMillis() - t) + "): " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
+                log.debug("combine(" + (System.currentTimeMillis() - t) + "): " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
                         Arrays.stream(videoCaptures)
                                 .map(c -> String.format("%s %d (%.2f); ", c.getName(), c.queue(), c.getFpsCur()))
                                 .collect(Collectors.joining()));
