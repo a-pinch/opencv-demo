@@ -28,36 +28,22 @@ public class VideoStreamController {
     }
 
     @GetMapping(value = "/stream")
-    public ResponseEntity<StreamingResponseBody> stream(final HttpServletResponse response) throws IOException {
+    public StreamingResponseBody stream(final HttpServletResponse response) throws IOException {
         response.setContentType("multipart/x-mixed-replace; boundary=frame");
-        boolean b = true;
-        StreamingResponseBody stream = out -> {
+        byte[] startFrame = "--frame\r\nContent-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8);
+        byte[] endFrame = "\r\n".getBytes(StandardCharsets.UTF_8);
+        return out -> {
             ServletOutputStream outputStream = response.getOutputStream();
-            while(b){
-                Mat[] mats = MultiThreadVideoCaptureDemo.get();
-                if (mats != null) {
-                    MatOfByte buf = new MatOfByte();
-                    if(Imgcodecs.imencode(".jpg", mats[0], buf)) {
-                        outputStream.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-                        outputStream.write(buf.toArray());
-                        outputStream.write("\r\n".getBytes(StandardCharsets.UTF_8));
-                        log.trace("wrote " + buf.size() + " bites (" + MultiThreadVideoCaptureDemo.getQueueSize() + ")");
-                    }else{
-                        log.warn("failed to encode jpg");
+            while(true){
+                byte[] mats = MultiThreadVideoCaptureDemo.get();
+
+                    if (mats != null) {
+                        outputStream.write(startFrame);
+                        outputStream.write(mats);
+                        outputStream.write(endFrame);
+                        log.trace("wrote " + mats.length + " bites (" + MultiThreadVideoCaptureDemo.getQueueSize() + ")");
                     }
                 }
-//                try {
-//                    Thread.sleep(1000/8);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-            }
-            log.info("exit from web streaming controller");
-            outputStream.close();
         };
-
-//        return "Hello "+ name + "; " + MultiThreadVideoCaptureDemo.getQueueSize();
-        log.info("steaming response {} ", stream);
-        return new ResponseEntity(stream, HttpStatus.OK);
     }
 }

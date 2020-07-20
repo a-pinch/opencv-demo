@@ -129,12 +129,12 @@ public class MultiThreadVideoCapture implements Runnable {
 
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
 
-//                if(i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
+                if(i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
                     multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
-//                    log.debug("combine asynchronous frames");
-//                    break;
-//                }
-/*
+                    log.debug("combine asynchronous frames");
+                    break;
+                }
+
                 if (f0 != videoCaptures[0].peak() || f1 != videoCaptures[1].peak()) {
                     f0 = videoCaptures[0].peak();
                     f1 = videoCaptures[1].peak();
@@ -153,14 +153,14 @@ public class MultiThreadVideoCapture implements Runnable {
                 } else {
                     multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
                 }
-*/
+
             }
 
             if (!videoCaptures[0].more() || !videoCaptures[1].more()) sleep(MULTI_CAPTURE_THREAD_SLEEP_MS);
 
         }
 
-//        if (log.isDebugEnabled())
+        if (log.isDebugEnabled())
             if (++frames % LOG_STEP == 0)
                 log.info("combine(" + (System.currentTimeMillis() - t) + "): " + multiFramesQueue.size() + (fpsMeter == null ? ";" : String.format("(%.2f);", fpsMeter.getFps())) +
                         Arrays.stream(videoCaptures)

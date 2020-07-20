@@ -3,6 +3,7 @@ package sync.opencv;
 import lombok.extern.slf4j.Slf4j;
 import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -29,8 +30,16 @@ public class MultiThreadVideoCaptureDemo {
         return processedFramesQueue.size();
     }
 
-    public static Mat[] get(){
-        return processedFramesQueue.poll();
+    public static byte[] get(){
+        Mat[] frames = processedFramesQueue.poll();
+        if(frames != null) {
+            Mat frame = concatenate(frames, 0.5, null);
+            MatOfByte buf = new MatOfByte();
+            if (Imgcodecs.imencode(".jpg", frame, buf)) {
+                return buf.toArray();
+            }
+        }
+        return null;
     }
 
     public static void main(String[] args) {
@@ -55,9 +64,9 @@ public class MultiThreadVideoCaptureDemo {
 
         FpsMeter fpsMeter = new FpsMeter("show");
 
-        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(null, rowFramesQueue, processedFramesQueue,
-                "http://93.87.72.254:8090/mjpg/video.mjpg?COUNTER#.Wt9InV_SGHE.link",
-                "http://93.87.72.254:8090/mjpg/video.mjpg?COUNTER#.Wt9InV_SGHE.link");
+//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(null, rowFramesQueue,
+//                "http://93.87.72.254:8090/mjpg/video.mjpg?COUNTER#.Wt9InV_SGHE.link",
+//                "http://93.87.72.254:8090/mjpg/video.mjpg?COUNTER#.Wt9InV_SGHE.link");
 
 //        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(rowFramesQueue, fpsMeter,
 //                "https://hls-stream.fever-screener.altoros.com/14/1/video/stream.m3u8",
@@ -67,9 +76,9 @@ public class MultiThreadVideoCaptureDemo {
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
 
-//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue, processedFramesQueue,
-//                "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=1&subtype=0 ",
-//                "rtsp://admin:123admin123@82.209.244.52:33554/cam/realmonitor?channel=2&subtype=0");
+        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue,
+                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=1&subtype=0 ",
+                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=2&subtype=0");
 
         Thread videoCaptureThread = new Thread(cap);
         videoCaptureThread.start();
