@@ -1,8 +1,9 @@
-package sync.opencv;
+package sync.opencv.motion;
 
 import lombok.extern.slf4j.Slf4j;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,13 +11,18 @@ import java.util.List;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 
 @Slf4j
-public class SingleMotionDetector {
+@Component
+public class SingleMotionDetector implements MotionDetector {
 
     Mat bg;
     double accumWeight;
     int frameCount;
     int tVal = 25;
     int totalFrames = 0;
+    RectTreck watchBox = null;
+
+    public SingleMotionDetector() {
+    }
 
     public SingleMotionDetector(double accumWeight, int frameCount, int threshold) {
         this.accumWeight = accumWeight;
@@ -24,7 +30,7 @@ public class SingleMotionDetector {
         this.tVal = threshold;
     }
 
-    public void update(Mat image){
+    private void update(Mat image){
         if(bg == null){
             bg = new Mat();
             image.copyTo(bg);
@@ -34,8 +40,7 @@ public class SingleMotionDetector {
         Imgproc.accumulateWeighted(image, bg, accumWeight);
     }
 
-
-    public Mat detect(Mat image){
+    public RectTreck detect(Mat image){
 
         Mat gray = new Mat();
         Imgproc.cvtColor(image, gray, COLOR_BGR2GRAY);
@@ -76,6 +81,6 @@ public class SingleMotionDetector {
         totalFrames++;
         gray.release();
 
-        return image;
+        return watchBox;
     }
 }

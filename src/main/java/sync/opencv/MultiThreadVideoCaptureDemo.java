@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.yaml.snakeyaml.Yaml;
 import sync.opencv.config.Config;
+import sync.opencv.motion.RectTreck;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,24 +26,15 @@ public class MultiThreadVideoCaptureDemo {
 
     private static Queue<Mat[]> rowFramesQueue = new ConcurrentLinkedQueue<>();
     private static Queue<Mat[]> processedFramesQueue = new ConcurrentLinkedQueue<>();
-    private static boolean watchBox = false;
+    private static RectTreck[] watchBoxes = new RectTreck[2];
+    private static boolean watchBox = true;
     private static Config config = new Config();
 
     public static int getQueueSize(){
         return processedFramesQueue.size();
     }
 
-    public static byte[] get(){
-        Mat[] frames = processedFramesQueue.poll();
-        if(frames != null) {
-            Mat frame = concatenate(frames, 0.5, watchBox ? config.getWatchBox() : null);
-            MatOfByte buf = new MatOfByte();
-            if (Imgcodecs.imencode(".jpg", frame, buf)) {
-                return buf.toArray();
-            }
-        }
-        return null;
-    }
+
     public static boolean toggleWatchBox(){
         watchBox = !watchBox;
         return watchBox;
@@ -84,10 +76,14 @@ public class MultiThreadVideoCaptureDemo {
                 "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=1&subtype=0 ",
                 "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=2&subtype=0");
 
+//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue,
+//                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/visual.mov",
+//                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/thermal.mov");
+
         Thread videoCaptureThread = new Thread(cap);
         videoCaptureThread.start();
 
-        FrameProcessor frameProcessor = new FrameProcessor(rowFramesQueue, processedFramesQueue);
+        FrameProcessor frameProcessor = new FrameProcessor(rowFramesQueue, processedFramesQueue, watchBoxes);
         Thread frameProcessorThread = new Thread(frameProcessor);
         frameProcessorThread.start();
 /*
@@ -147,13 +143,31 @@ public class MultiThreadVideoCaptureDemo {
         System.exit(0);
     }
 
-    private static Mat concatenate(Mat[] frames, Double resize, Rect watchBox) {
+    public static byte[] get(){
+        Mat[] frames = processedFramesQueue.poll();
+        if(frames != null) {
+            Mat frame = concatenate(frames, 0.75, watchBox ? watchBoxes : null);
+            MatOfByte buf = new MatOfByte();
+            if (Imgcodecs.imencode(".jpg", frame, buf)) {
+                return buf.toArray();
+            }
+        }
+        return null;
+    }
+
+    private static Mat concatenate(Mat[] frames, Double resize, RectTreck[] watchBox) {
         Mat dst = new Mat();
         List<Mat> resized = new ArrayList<>(frames.length);
 
         if(watchBox != null){
-            Imgproc.rectangle(frames[0], watchBox, new Scalar(0, 0, 255)); //red
-            Imgproc.rectangle(frames[1], watchBox, new Scalar(0, 0, 255)); //red
+            if(watchBox[0].getTreck()>250)
+                Imgproc.rectangle(frames[0], watchBox[0].getRect(), new Scalar(0, 255, 0)); //green
+            else if(watchBox[0].getTreck()>100)
+                Imgproc.rectangle(frames[0], watchBox[0].getRect(), new Scalar(0, 255, 255)); //yellow
+            if(watchBox[1].getTreck()>250)
+                Imgproc.rectangle(frames[1], watchBox[1].getRect(), new Scalar(0, 255, 0)); //green
+            else if(watchBox[1].getTreck()>100)
+                Imgproc.rectangle(frames[1], watchBox[1].getRect(), new Scalar(0, 255, 255)); //yellow
 //            Imgproc.rectangle(frames[1], watchBox, new Scalar(255, 0, 0)); //blue
         }
 

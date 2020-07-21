@@ -1,21 +1,31 @@
 package sync.opencv;
 
 import org.opencv.core.Mat;
+import org.springframework.stereotype.Component;
+import sync.opencv.motion.MotionDetector;
+import sync.opencv.motion.MultiMotionDetector;
+import sync.opencv.motion.RectTreck;
 
 import java.util.Queue;
 
+@Component
 public class FrameProcessor implements Runnable {
 
-    Queue<Mat[]> rowFramesQueue;
-    Queue<Mat[]> processedFramesQueue;
-    SingleMotionDetector visualMotionDetector = new SingleMotionDetector(0.01, 32, 25);
-    SingleMotionDetector thermalMotionDetector = new SingleMotionDetector(0.01, 32, 25);
+    private Queue<Mat[]> rowFramesQueue;
+    private Queue<Mat[]> processedFramesQueue;
+    private RectTreck[] watchBoxes;
+    private MotionDetector visualMotionDetector = new MultiMotionDetector(0.01, 32, 25);
+    private MotionDetector thermalMotionDetector = new MultiMotionDetector(0.01, 32, 25);
 
     boolean stopped = false;
 
-    public FrameProcessor(Queue<Mat[]> rowFramesQueue, Queue<Mat[]> processedFramesQueue) {
+    public FrameProcessor() {
+    }
+
+    public FrameProcessor(Queue<Mat[]> rowFramesQueue, Queue<Mat[]> processedFramesQueue, RectTreck[] watchBoxes) {
         this.rowFramesQueue = rowFramesQueue;
         this.processedFramesQueue = processedFramesQueue;
+        this.watchBoxes = watchBoxes;
     }
 
     @Override
@@ -47,9 +57,9 @@ public class FrameProcessor implements Runnable {
         } else {
             // todo put your code here instead
             Mat[] processedFrames = new Mat[rowFrames.length];
-            processedFrames[0] = visualMotionDetector.detect(rowFrames[0]);
-            processedFrames[1] = thermalMotionDetector.detect(rowFrames[1]);
-            processedFramesQueue.offer(processedFrames);
+            watchBoxes[0] = visualMotionDetector.detect(rowFrames[0]);
+            watchBoxes[1] = thermalMotionDetector.detect(rowFrames[1]);
+            processedFramesQueue.offer(rowFrames);
         }
 
     }
