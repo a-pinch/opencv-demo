@@ -8,6 +8,8 @@ public class FrameProcessor implements Runnable {
 
     Queue<Mat[]> rowFramesQueue;
     Queue<Mat[]> processedFramesQueue;
+    SingleMotionDetector visualMotionDetector = new SingleMotionDetector(0.01, 32, 25);
+    SingleMotionDetector thermalMotionDetector = new SingleMotionDetector(0.01, 32, 25);
 
     boolean stopped = false;
 
@@ -19,7 +21,12 @@ public class FrameProcessor implements Runnable {
     @Override
     public void run() {
         while(!stopped){
-            detectFaces();
+            try {
+                detectFaces();
+            }catch (Exception e){
+                stopped = true;
+                throw new IllegalStateException(e);
+            }
         }
     }
 
@@ -27,30 +34,21 @@ public class FrameProcessor implements Runnable {
         stopped = true;
     }
 
-    private void detectFaces(){
+    public boolean isStopped() {
+        return stopped;
+    }
+
+    private void detectFaces() throws InterruptedException {
 
         Mat[] rowFrames = rowFramesQueue.poll();
 
-        /*try {
-            Thread.sleep(10);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }*/
-
         if(rowFrames == null){
-            try {
-                Thread.sleep(10);
-                return;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            Thread.sleep(10);
         } else {
-
             // todo put your code here instead
             Mat[] processedFrames = new Mat[rowFrames.length];
-            for (int i = 0; i < rowFrames.length; i++)
-                processedFrames[i] = rowFrames[i];
-
+            processedFrames[0] = visualMotionDetector.detect(rowFrames[0]);
+            processedFrames[1] = thermalMotionDetector.detect(rowFrames[1]);
             processedFramesQueue.offer(processedFrames);
         }
 

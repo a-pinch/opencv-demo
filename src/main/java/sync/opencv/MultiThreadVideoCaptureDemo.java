@@ -25,6 +25,8 @@ public class MultiThreadVideoCaptureDemo {
 
     private static Queue<Mat[]> rowFramesQueue = new ConcurrentLinkedQueue<>();
     private static Queue<Mat[]> processedFramesQueue = new ConcurrentLinkedQueue<>();
+    private static boolean watchBox = false;
+    private static Config config = new Config();
 
     public static int getQueueSize(){
         return processedFramesQueue.size();
@@ -33,7 +35,7 @@ public class MultiThreadVideoCaptureDemo {
     public static byte[] get(){
         Mat[] frames = processedFramesQueue.poll();
         if(frames != null) {
-            Mat frame = concatenate(frames, 0.5, null);
+            Mat frame = concatenate(frames, 0.5, watchBox ? config.getWatchBox() : null);
             MatOfByte buf = new MatOfByte();
             if (Imgcodecs.imencode(".jpg", frame, buf)) {
                 return buf.toArray();
@@ -41,13 +43,15 @@ public class MultiThreadVideoCaptureDemo {
         }
         return null;
     }
+    public static boolean toggleWatchBox(){
+        watchBox = !watchBox;
+        return watchBox;
+    }
 
     public static void main(String[] args) {
 
         SpringApplication.run(MultiThreadVideoCaptureDemo.class, args);
 
-
-        Config config = new Config();
 
         // Load the native OpenCV library
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
@@ -122,16 +126,23 @@ public class MultiThreadVideoCaptureDemo {
         } while (!cap.isStopped() && key != 27);
 */
 
-        try {
-            videoCaptureThread.join();
-            frameProcessorThread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+       while (!frameProcessor.isStopped() && !cap.isStopped()){
+           sleep(100);
+       }
+
         cap.release();
         log.debug("captures released");
         frameProcessor.stop();
         log.debug("frame processor stopped");
+
+        try {
+            frameProcessorThread.join();
+            videoCaptureThread.join();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         fpsMeter.summary();
         System.exit(0);
     }

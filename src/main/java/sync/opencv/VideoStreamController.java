@@ -1,12 +1,6 @@
 package sync.opencv;
 
 import lombok.extern.slf4j.Slf4j;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,7 +9,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 @RestController
@@ -45,5 +38,10 @@ public class VideoStreamController {
                     }
                 }
         };
+    }
+
+    @GetMapping(value = "/box")
+    public boolean toggleWatchBox(){
+        return MultiThreadVideoCaptureDemo.toggleWatchBox();
     }
 }
