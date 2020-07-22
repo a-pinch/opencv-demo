@@ -5,13 +5,13 @@
 <body>
     <h1>Video Surveillance</h1>
     <button onclick="toggleWatchBox();">Watch box</button><br><br>
-    <img src="http://localhost:8080/stream" alt="video is unavailable"/>
+    <img src="http://localhost:3535/stream" alt="video is unavailable"/>
 </body>
 
 <script>
     const toggleWatchBox = async () => {
         console.log("toggle async");
-        await fetch('http://localhost:8080/box', {mode: "no-cors"});
+        await fetch('http://localhost:3535/box', {mode: "no-cors"});
     }
 </script>
 </html>

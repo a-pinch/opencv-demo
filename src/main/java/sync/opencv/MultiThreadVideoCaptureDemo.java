@@ -28,7 +28,7 @@ public class MultiThreadVideoCaptureDemo {
     private static Queue<Mat[]> processedFramesQueue = new ConcurrentLinkedQueue<>();
     private static RectTreck[] watchBoxes = new RectTreck[2];
     private static boolean watchBox = true;
-    private static Config config = new Config();
+//    private static Config config = new Config();
 
     public static int getQueueSize(){
         return processedFramesQueue.size();
@@ -47,7 +47,7 @@ public class MultiThreadVideoCaptureDemo {
 
         // Load the native OpenCV library
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-
+/*
         Yaml yaml = new Yaml();
         try {
             try (InputStream in = MultiThreadVideoCaptureDemo.class.getClassLoader().getResourceAsStream("application.yml")) {
@@ -56,7 +56,7 @@ public class MultiThreadVideoCaptureDemo {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
 
         FpsMeter fpsMeter = new FpsMeter("show");
 
@@ -72,13 +72,13 @@ public class MultiThreadVideoCaptureDemo {
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=1&subtype=0 ",
 //                "rtsp://admin:123admin123@172.16.16.12:33380/cam/realmonitor?channel=2&subtype=0");
 
-        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue,
-                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=1&subtype=0 ",
-                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=2&subtype=0");
-
-//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(config.getWatchBox(), rowFramesQueue,
-//                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/visual.mov",
-//                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/thermal.mov");
+//        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(watchBoxes, rowFramesQueue,
+//                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=1&subtype=0 ",
+//                "rtsp://admin:Altoros2020FS@82.209.244.52:33380/cam/realmonitor?channel=2&subtype=0");
+//
+        MultiThreadVideoCapture cap = new MultiThreadVideoCapture(watchBoxes, rowFramesQueue,
+                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/visual.mov",
+                "/Users/x_pinchan1/projects/test/facedetection/opencvJava/doc/thermal.mov");
 
         Thread videoCaptureThread = new Thread(cap);
         videoCaptureThread.start();
@@ -146,7 +146,7 @@ public class MultiThreadVideoCaptureDemo {
     public static byte[] get(){
         Mat[] frames = processedFramesQueue.poll();
         if(frames != null) {
-            Mat frame = concatenate(frames, 0.75, watchBox ? watchBoxes : null);
+            Mat frame = concatenate(frames, 1., watchBox ? watchBoxes : null);
             MatOfByte buf = new MatOfByte();
             if (Imgcodecs.imencode(".jpg", frame, buf)) {
                 return buf.toArray();

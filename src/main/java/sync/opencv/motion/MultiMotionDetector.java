@@ -14,6 +14,8 @@ import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 @Component
 public class MultiMotionDetector implements MotionDetector {
 
+    private final int LOG_STEP = 20;
+
     private Mat bg;
     private double accumWeight;
     private int frameCount;
@@ -64,7 +66,7 @@ public class MultiMotionDetector implements MotionDetector {
             List<MatOfPoint> contours = new ArrayList<>();
             Imgproc.findContours(delta, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-            Set<Rect> processed = new HashSet<>();
+            Map<Rect, List<Rect>> processed = new HashMap<>();
             StringBuilder sb = new StringBuilder("find: ");
 
             contours.forEach(m -> {
@@ -73,28 +75,36 @@ public class MultiMotionDetector implements MotionDetector {
 
                 if (cr == null) {
                     trackedRects.add(new RectTreck(r));
-                    processed.add(r);
+                    processed.put(r, null);
                 }else {
                     //check rects intersection
-                    Rect[] rcts = {cr, r};
-                    sort(rcts);
-                    if (overlap(rcts)) {
-                        cr.set(new double[]{rcts[0].x, rcts[0].y, rcts[0].width, rcts[0].height});
-                        processed.add(cr);
+//                    Rect[] rcts = {cr, r};
+//                    sort(rcts);
+                    if (overlap(r, cr)) {
+//                        cr.set(new double[]{rcts[0].x, rcts[0].y, rcts[0].width, rcts[0].height});
+                        List<Rect> mappedRects = processed.get(cr);
+                        if(mappedRects == null) mappedRects = new ArrayList<>();
+                        mappedRects.add(r);
+                        processed.put(cr, mappedRects);
                     } else {
                         trackedRects.add(new RectTreck(r));
-                        processed.add(r);
+                        processed.put(r,  null);
                     }
                 }
 
                 sb.append(r.toString()).append("; ");
             });
-            log.debug(sb.toString());
+            log.trace(sb.toString());
 
             Iterator<RectTreck> i = trackedRects.iterator();
             while (i.hasNext()) {
                 RectTreck r = i.next();
-                if (processed.contains(r.getRect())){
+                if (processed.containsKey(r.getRect())){
+                    if(processed.get(r.getRect()) != null) {
+                        Rect boundedRect = getBoundRect(processed.get(r.getRect()));
+                        Rect avgRect = getAvgRect(r.getRect(), boundedRect);
+                        r.setRect(avgRect);
+                    }
                     r.inc();
                 }
                 else {
@@ -105,10 +115,11 @@ public class MultiMotionDetector implements MotionDetector {
 
             StringBuilder sb2 = new StringBuilder("tracked: ");
             for (RectTreck r : trackedRects) {
+//                Imgproc.rectangle(image, r.getRect(), new Scalar(0, 0, 255), 2);
                 if(r.getTreck()>watchBox.getTreck()) watchBox = r;
                 sb2.append(r.getRect()).append("(").append(r.getTreck()).append("); ");
             }
-            log.debug(sb2.toString());
+            if(totalFrames % LOG_STEP == 0) log.debug(sb2.toString());
 
             hierarchy.release();
             delta.release();
@@ -120,6 +131,27 @@ public class MultiMotionDetector implements MotionDetector {
         gray.release();
 
         return watchBox;
+    }
+
+    private Rect getBoundRect(List<Rect> rects){
+        int[] p = {-1, -1, -1, -1};
+        rects.forEach(r -> {
+            p[0] = p[0] == -1 ? r.x : Math.min(p[0], r.x);
+            p[1] = p[1] == -1 ? r.y : Math.min(p[1], r.y);
+            p[2] = Math.max(p[2], r.x+r.width);
+            p[3] = Math.max(p[3], r.y+r.height);
+        });
+        return new Rect(p[0],p[1], p[2] - p[0], p[3] - p[1]);
+    }
+
+    private Rect getAvgRect(Rect r1, Rect r2){
+        if(r1.width*r1.height<r2.width*r2.height) return getBoundRect(Arrays.asList(r1, r2));
+        double k = 0.03;
+        int x1 = r1.x +(int)Math.round((r2.x-r1.x)*k);
+        int y1 = r1.y + (int)Math.round((r2.y-r1.y)*k);
+        int x2 = r1.x + r1.width + (int)Math.round((r2.x+r2.width-(r1.x+r1.width))*k);
+        int y2 = r1.y + r1.height + (int)Math.round((r2.y+r2.height-(r1.y+r1.height))*k);
+        return new Rect(x1, y1, x2-x1, y2-y1);
     }
 
     private Rect findClosest(Rect r, Collection<Rect> rects){

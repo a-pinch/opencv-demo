@@ -7,6 +7,7 @@ import org.opencv.core.Rect;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
+import sync.opencv.motion.RectTreck;
 
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
@@ -20,6 +21,9 @@ public class MultiThreadVideoCapture implements Runnable {
     private static final int DEFAULT_QUEUE_SIZE = 64;
     private static final int SYNCHRONIZATION_SEARCH_DEPTH = 127;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
+    private static final int DISTORTION_THRESHOLD = 150;
+    private static final int WATCHBOX_THRESHOLD_MIN = 150;
+    private static final int WATCHBOX_THRESHOLD_MAX = 250;
     private static final int LOG_STEP = 20;
 
     private volatile Queue<Mat[]> multiFramesQueue;
@@ -31,15 +35,15 @@ public class MultiThreadVideoCapture implements Runnable {
     private boolean stopped = false;
     private Thread[] threads;
     private Mat diff = new Mat();
-    Rect watchBox;
+    RectTreck[]  watchBox;
 
     private static CyclicBarrier BARRIER;
 
-    public MultiThreadVideoCapture(Rect watchBox, Queue<Mat[]> multiFramesQueue, String... videoSrc) {
+    public MultiThreadVideoCapture(RectTreck[] watchBox, Queue<Mat[]> multiFramesQueue, String... videoSrc) {
         this(watchBox, multiFramesQueue, DEFAULT_QUEUE_SIZE, videoSrc);
     }
 
-    public MultiThreadVideoCapture(Rect watchBox, Queue<Mat[]> multiFramesQueue, int queueLimit, String... videoSrc) {
+    public MultiThreadVideoCapture(RectTreck[]  watchBox, Queue<Mat[]> multiFramesQueue, int queueLimit, String... videoSrc) {
 
         this.multiFramesQueue = multiFramesQueue;
         this.queueLimit = queueLimit;
@@ -129,9 +133,11 @@ public class MultiThreadVideoCapture implements Runnable {
 
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
 
-                if(i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
+                if(watchBox[0] == null || watchBox[0].getTreck()<WATCHBOX_THRESHOLD_MIN ||
+                        watchBox[1] == null || watchBox[1].getTreck()<WATCHBOX_THRESHOLD_MIN ||
+                        i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
                     multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
-                    log.debug("combine asynchronous frames");
+                    log.trace("combine asynchronous frames");
                     break;
                 }
 
@@ -140,14 +146,14 @@ public class MultiThreadVideoCapture implements Runnable {
                     f1 = videoCaptures[1].peak();
                     i0 = 0; i1 = 0;
                     distortion = compare(f0, f1);
-                    if (log.isDebugEnabled() && distortion > 30) {
+                    if (log.isDebugEnabled() && distortion > DISTORTION_THRESHOLD) {
                         log.debug("origin distortion " + distortion);
                     } else {
                         log.trace("origin distortion " + distortion);
                     }
                 }
 
-                if (distortion > 30) {
+                if (distortion > DISTORTION_THRESHOLD) {
                     if ((i0 = shift(f0, videoCaptures[1], 1, i0)) < 0 || (i1 = shift(f1, videoCaptures[0], 0, i1)) < 0)
                         multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
                 } else {
@@ -173,8 +179,13 @@ public class MultiThreadVideoCapture implements Runnable {
     private int compare(Mat... frames) {
 
 
-        Mat visual = frames[0].submat(new Rect(watchBox.x, watchBox.y, watchBox.width, watchBox.height));
-        Mat thermal = frames[1].submat(new Rect(watchBox.x, watchBox.y, watchBox.width, watchBox.height));
+        Mat visual = frames[0].submat(new Rect(watchBox[0].getRect().x, watchBox[0].getRect().y, watchBox[0].getRect().width, watchBox[0].getRect().height));
+        Mat thermal = frames[1].submat(new Rect(watchBox[1].getRect().x, watchBox[1].getRect().y, watchBox[1].getRect().width, watchBox[1].getRect().height));
+
+        if(visual.size().area() > thermal.size().area())
+            Imgproc.resize(visual, visual, thermal.size());
+        else
+            Imgproc.resize(thermal, thermal, visual.size());
 
         Imgproc.cvtColor(visual, visual, Imgproc.COLOR_BGR2GRAY);
         Imgproc.cvtColor(thermal, thermal, Imgproc.COLOR_BGR2GRAY);
@@ -194,7 +205,7 @@ public class MultiThreadVideoCapture implements Runnable {
             Iterator<Mat> it = cap.iterator();
             it.next();
 
-            int distf = 100;
+            int distf = 1000;
             if (i > 0) {
                 for (int j = 0; j < i; j++) it.next();
             } else {
@@ -203,13 +214,13 @@ public class MultiThreadVideoCapture implements Runnable {
             }
             log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
 
-            if (distf > 30 && it.hasNext()) {
+            if (distf > DISTORTION_THRESHOLD && it.hasNext()) {
                 distf = compare(templateFrame, it.next());
                 i++;
                 log.trace(String.format("dist(%d) %d/%d - %d", i, c == 0 ? 1 : 0, c, distf));
             }
 
-            if (distf < 30) {
+            if (distf < DISTORTION_THRESHOLD) {
                 //shift
                 if(i<3){
                     log.trace(String.format("skip shift %d on %d", c, i));

@@ -1,3 +1,6 @@
+server:
+  port: 3535
+
 watchBox:
   x: 1133
   y: 26
