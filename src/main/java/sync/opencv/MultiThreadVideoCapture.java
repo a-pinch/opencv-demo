@@ -242,8 +242,8 @@ public class MultiThreadVideoCapture implements Runnable {
         Mat diff = new Mat();
         int d, minD=-1;
 
-        for(int w=0; w<Math.abs(src1.width()-src2.width()); w++){
-            for(int h=0; h<Math.abs(src1.height()-src2.height()); h++){
+        for(int w=0; w<=Math.abs(src1.width()-src2.width()); w++){
+            for(int h=0; h<=Math.abs(src1.height()-src2.height()); h++){
                 Mat s1 = src1.submat(new Rect(src1.width()>src2.width()?w:0,
                                               src1.height()>src2.height()?h:0,
                                               Math.min(src1.width(), src2.width()),
