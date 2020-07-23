@@ -94,23 +94,7 @@ public class MultiMotionDetector implements MotionDetector {
             });
             log.trace(sb.toString());
 
-            Iterator<RectTreck> i = trackedRects.iterator();
-            while (i.hasNext()) {
-                RectTreck r = i.next();
-                if (processed.containsKey(r.getRect())){
-                    if(processed.get(r.getRect()) != null) {
-                        Rect boundedRect = getBoundRect(processed.get(r.getRect()));
-                        Rect avgRect = getAvgRect(r.getRect(), boundedRect);
-                        r.setRect(avgRect);
-                    }
-                    r.inc();
-                }
-                else {
-                    if (r.getTreck() <= 1) i.remove();
-                    else r.dec();
-                }
-            }
-
+            boundToTrackedRects(processed, trackedRects);
             reduceTrackedRects(trackedRects);
 
             StringBuilder sb2 = new StringBuilder("tracked: ");
@@ -131,6 +115,25 @@ public class MultiMotionDetector implements MotionDetector {
         gray.release();
 
         return watchBox;
+    }
+
+    private void boundToTrackedRects(Map<Rect, List<Rect>> processed, List<RectTreck> trackedRects){
+        Iterator<RectTreck> i = trackedRects.iterator();
+        while (i.hasNext()) {
+            RectTreck r = i.next();
+            if (processed.containsKey(r.getRect())){
+                if(processed.get(r.getRect()) != null) {
+                    Rect boundedRect = getBoundRect(processed.get(r.getRect()));
+                    Rect avgRect = getAvgRect(r.getRect(), boundedRect);
+                    r.setRect(avgRect);
+                }
+                r.inc();
+            }
+            else {
+                if (r.getTreck() <= 1) i.remove();
+                else r.dec();
+            }
+        }
     }
 
     private void reduceTrackedRects(List<RectTreck> trackedRects){
