@@ -103,7 +103,7 @@ public class MultiMotionDetector implements MotionDetector {
                 if(r.getTreck()>watchBox.getTreck()) watchBox = r;
                 sb2.append(r.getRect()).append("(").append(r.getTreck()).append("); ");
             }
-            if(totalFrames % LOG_STEP == 0) log.debug(sb2.toString());
+            if(totalFrames % LOG_STEP == 0) log.trace(sb2.toString());
 
             hierarchy.release();
             delta.release();
