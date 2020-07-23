@@ -1,5 +1,6 @@
 package sync.opencv;
 
+import lombok.extern.slf4j.Slf4j;
 import org.opencv.core.Mat;
 import org.springframework.stereotype.Component;
 import sync.opencv.motion.MotionDetector;
@@ -9,6 +10,7 @@ import sync.opencv.motion.RectTreck;
 import java.util.Queue;
 
 @Component
+@Slf4j
 public class FrameProcessor implements Runnable {
 
     private Queue<Mat[]> rowFramesQueue;

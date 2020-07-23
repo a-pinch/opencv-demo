@@ -3,7 +3,9 @@ package sync.opencv;
 import lombok.extern.slf4j.Slf4j;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
 import org.opencv.core.Rect;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.videoio.Videoio;
@@ -21,9 +23,7 @@ public class MultiThreadVideoCapture implements Runnable {
     private static final int DEFAULT_QUEUE_SIZE = 64;
     private static final int SYNCHRONIZATION_SEARCH_DEPTH = 127;
     private static final int MULTI_CAPTURE_THREAD_SLEEP_MS = 10;  // default thread delay
-    private static final int DISTORTION_THRESHOLD = 150;
-    private static final int WATCHBOX_THRESHOLD_MIN = 150;
-    private static final int WATCHBOX_THRESHOLD_MAX = 250;
+    private static final int DISTORTION_THRESHOLD = 40;
     private static final int LOG_STEP = 20;
 
     private volatile Queue<Mat[]> multiFramesQueue;
@@ -35,7 +35,8 @@ public class MultiThreadVideoCapture implements Runnable {
     private boolean stopped = false;
     private Thread[] threads;
     private Mat diff = new Mat();
-    RectTreck[]  watchBox;
+    private RectTreck[]  watchBox;
+    private static Mat[] fragment = new Mat[20];
 
     private static CyclicBarrier BARRIER;
 
@@ -133,11 +134,10 @@ public class MultiThreadVideoCapture implements Runnable {
 
             if (videoCaptures[0].more() && videoCaptures[1].more()) {
 
-                if(watchBox[0] == null || watchBox[0].getTreck()<WATCHBOX_THRESHOLD_MIN ||
-                        watchBox[1] == null || watchBox[1].getTreck()<WATCHBOX_THRESHOLD_MIN ||
+                if(watchBox[0] == null || !watchBox[0].isInited() || watchBox[1] == null || !watchBox[1].isInited() ||
                         i0 > SYNCHRONIZATION_SEARCH_DEPTH || i1 > SYNCHRONIZATION_SEARCH_DEPTH){
                     multiFrame = new Mat[]{videoCaptures[0].read(), videoCaptures[1].read()};
-                    log.trace("combine asynchronous frames");
+                    log.debug("combine asynchronous frames");
                     break;
                 }
 
@@ -149,7 +149,7 @@ public class MultiThreadVideoCapture implements Runnable {
                     if (log.isDebugEnabled() && distortion > DISTORTION_THRESHOLD) {
                         log.debug("origin distortion " + distortion);
                     } else {
-                        log.trace("origin distortion " + distortion);
+                        log.debug("origin distortion " + distortion);
                     }
                 }
 
@@ -182,16 +182,30 @@ public class MultiThreadVideoCapture implements Runnable {
         Mat visual = frames[0].submat(new Rect(watchBox[0].getRect().x, watchBox[0].getRect().y, watchBox[0].getRect().width, watchBox[0].getRect().height));
         Mat thermal = frames[1].submat(new Rect(watchBox[1].getRect().x, watchBox[1].getRect().y, watchBox[1].getRect().width, watchBox[1].getRect().height));
 
-        if(visual.size().area() > thermal.size().area())
+        if(visual.empty() || thermal.empty()) return -1;
+
+        fragment[0] = new Mat(); fragment[1] = new Mat();
+        visual.copyTo(fragment[0]);  thermal.copyTo(fragment[1]);
+
+        if(visual.size().area() < thermal.size().area())
             Imgproc.resize(visual, visual, thermal.size());
         else
             Imgproc.resize(thermal, thermal, visual.size());
 
+        fragment[2] = new Mat(); fragment[3] = new Mat();
+        visual.copyTo(fragment[2]);  thermal.copyTo(fragment[3]);
+
         Imgproc.cvtColor(visual, visual, Imgproc.COLOR_BGR2GRAY);
         Imgproc.cvtColor(thermal, thermal, Imgproc.COLOR_BGR2GRAY);
 
-        Imgproc.threshold(visual, visual, 200, 255, Imgproc.THRESH_BINARY);
-        Imgproc.threshold(thermal, thermal, 200, 255, Imgproc.THRESH_BINARY);
+        fragment[4] = new Mat(); fragment[5] = new Mat();
+        visual.copyTo(fragment[4]);  thermal.copyTo(fragment[5]);
+
+        Imgproc.threshold(visual, visual, 150, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(thermal, thermal, 100, 255, Imgproc.THRESH_BINARY);
+
+        fragment[6] = new Mat(); fragment[7] = new Mat();
+        visual.copyTo(fragment[6]);  thermal.copyTo(fragment[7]);
 
         Core.absdiff(visual, thermal, diff);
 
@@ -199,6 +213,19 @@ public class MultiThreadVideoCapture implements Runnable {
         return distAll;
 
     }
+
+    public static byte[] getFragment(int n){
+        if(fragment[n]!=null ) {
+            sleep(10);
+            MatOfByte buf = new MatOfByte();
+            if (Imgcodecs.imencode(".jpg", fragment[n], buf)) {
+                fragment[n] = null;
+                return buf.toArray();
+            }
+        }
+        return null;
+    }
+
 
     private int shift(Mat templateFrame, VideoCapThread cap, int c, int i) {
         if (cap.queue() > 1) {
@@ -238,11 +265,11 @@ public class MultiThreadVideoCapture implements Runnable {
         return videoCaptures[0].getFps();
     }
 
-    private void sleep(long millis) {
+    private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException();
         }
     }
 

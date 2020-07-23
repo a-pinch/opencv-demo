@@ -78,9 +78,7 @@ public class MultiMotionDetector implements MotionDetector {
                     processed.put(r, null);
                 }else {
                     //check rects intersection
-//                    Rect[] rcts = {cr, r};
-//                    sort(rcts);
-                    if (overlap(r, cr)) {
+                    if (overlap(cr, r)) {
 //                        cr.set(new double[]{rcts[0].x, rcts[0].y, rcts[0].width, rcts[0].height});
                         List<Rect> mappedRects = processed.get(cr);
                         if(mappedRects == null) mappedRects = new ArrayList<>();
@@ -113,6 +111,8 @@ public class MultiMotionDetector implements MotionDetector {
                 }
             }
 
+            reduceTrackedRects(trackedRects);
+
             StringBuilder sb2 = new StringBuilder("tracked: ");
             for (RectTreck r : trackedRects) {
 //                Imgproc.rectangle(image, r.getRect(), new Scalar(0, 0, 255), 2);
@@ -131,6 +131,28 @@ public class MultiMotionDetector implements MotionDetector {
         gray.release();
 
         return watchBox;
+    }
+
+    private void reduceTrackedRects(List<RectTreck> trackedRects){
+        boolean b;
+        do{
+            Iterator<RectTreck> i = trackedRects.iterator();
+            if(!i.hasNext()) break;
+            RectTreck prev = i.next();
+            b = false;
+            while (i.hasNext()){
+                RectTreck cur = i.next();
+                if(overlap(prev.getRect(), cur.getRect())){
+                    prev.setRect(getBoundRect(Arrays.asList(prev.getRect(), cur.getRect())));
+                    if(prev.getTreck()<cur.getTreck()) prev.setTreck(cur.getTreck());
+                    i.remove();
+                    b = true;
+                }else{
+                    prev = cur;
+                }
+
+            }
+        }while (b);
     }
 
     private Rect getBoundRect(List<Rect> rects){
@@ -179,10 +201,11 @@ public class MultiMotionDetector implements MotionDetector {
     }
 
     private boolean overlap(Rect ... r){
-        if(r[1].x > r[0].x + r[0].width || r[0].x > r[1].x + 2 * r[1].width)
+        sort(r);
+        if(r[1].x - r[1].width > r[0].x + r[0].width || r[0].x > r[1].x + 2 * r[1].width)
             return false;
 
-        if(r[1].y > r[0].y + r[0].height || r[0].y > r[1].y + 2 * r[1].height)
+        if(r[1].y - r[1].height > r[0].y + r[0].height || r[0].y > r[1].y + 2 * r[1].height)
             return false;
 
         return true;

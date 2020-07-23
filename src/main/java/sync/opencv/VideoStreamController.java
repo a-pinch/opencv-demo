@@ -2,6 +2,7 @@ package sync.opencv;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -36,7 +37,26 @@ public class VideoStreamController {
                         outputStream.write(endFrame);
                         log.trace("wrote " + mats.length + " bites (" + MultiThreadVideoCaptureDemo.getQueueSize() + ")");
                     }
+            }
+        };
+    }
+
+    @GetMapping(value = "/fragment/{n}")
+    public StreamingResponseBody fragment(@PathVariable int n, final HttpServletResponse response) throws IOException {
+        response.setContentType("multipart/x-mixed-replace; boundary=frame");
+        byte[] startFrame = "--frame\r\nContent-Type: image/jpeg\r\n\r\n".getBytes(StandardCharsets.UTF_8);
+        byte[] endFrame = "\r\n".getBytes(StandardCharsets.UTF_8);
+        return out -> {
+            ServletOutputStream outputStream = response.getOutputStream();
+            while(true){
+                byte[] mats = MultiThreadVideoCapture.getFragment(n);
+
+                if (mats != null) {
+                    outputStream.write(startFrame);
+                    outputStream.write(mats);
+                    outputStream.write(endFrame);
                 }
+            }
         };
     }
 

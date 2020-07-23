@@ -6,8 +6,13 @@ import org.opencv.core.Rect;
 
 @Getter @Setter
 public class RectTreck {
-    Rect rect;
-    Integer treck = 0;
+
+    public static final int WATCHBOX_THRESHOLD_MIN = 50;
+    public static final int WATCHBOX_THRESHOLD_MAX = 250;
+
+    private Rect rect;
+    private Integer treck = 0;
+    private boolean inited = false;
 
     public RectTreck(Rect rect) {
         this.rect = rect;
@@ -15,9 +20,11 @@ public class RectTreck {
 
     public void inc(){
         treck++;
+        inited |= treck > WATCHBOX_THRESHOLD_MAX;
     }
 
     public void dec(){
         treck--;
+        inited &= treck > WATCHBOX_THRESHOLD_MIN;
     }
 }
